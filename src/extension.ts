@@ -149,7 +149,7 @@ export function activate(context: vscode.ExtensionContext): void {
                 return;
             }
             telemetryReporter.sendTelemetryEvent('user/buttonPress', { 'VSCode.buttonCode': buttonCode.toggleAccessibilityInsights });
-            telemetryReporter.sendTelemetryEvent('view/accessibility-insights');
+            telemetryReporter.sendTelemetryEvent('view/accessibilityInsights');
             AccessibilityInsightsPanel.createOrShow(context, target.websocketUrl, isJsDebugProxiedCDPConnection);
         }));
 

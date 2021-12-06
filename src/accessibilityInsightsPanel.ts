@@ -30,8 +30,6 @@ export class AccessibilityInsightsPanel {
         this.context = context;
         this.targetUrl = targetUrl;
         this.extensionPath = this.context.extensionPath;
-    
-        console.log("CONSTRUCTOR")
 
         if (isJsDebugProxiedCDPConnection) {
             this.panelSocket = new JsDebugProxyPanelSocket(this.targetUrl, (e, msg) => this.postToWebview(e, msg));
@@ -67,10 +65,6 @@ export class AccessibilityInsightsPanel {
         this.panelSocket.dispose();
     }
 
-    toggleInspect(enabled: boolean): void {
-        encodeMessageForChannel(msg => this.panel.webview.postMessage(msg) as unknown as void, 'toggleInspect', { enabled });
-    }
-
     private onSocketClose() {
         this.dispose();
     }
@@ -93,7 +87,6 @@ export class AccessibilityInsightsPanel {
     }
 
     static createOrShow(context: vscode.ExtensionContext, targetUrl: string, isJsDebugProxiedCDPConnection = false): void {
-        console.log('CREATE OR SHOW')
         const column = vscode.ViewColumn.Beside;
         if (AccessibilityInsightsPanel.instance) {
             AccessibilityInsightsPanel.instance.dispose();
