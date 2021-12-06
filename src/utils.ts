@@ -143,6 +143,7 @@ export const buttonCode: Record<string, string> = {
     closeTarget: '9',
     emptyTargetListLaunchBrowserInstance: '10',
     toggleScreencast: '10',
+    toggleAccessibilityInsights: '11'
 };
 
 /**

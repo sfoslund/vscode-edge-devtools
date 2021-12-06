@@ -9,6 +9,7 @@ import { CDPTarget } from './cdpTarget';
 import { CDPTargetsProvider } from './cdpTargetsProvider';
 import { DevToolsPanel } from './devtoolsPanel';
 import { ScreencastPanel } from './screencastPanel';
+import { AccessibilityInsightsPanel } from './accessibilityInsightsPanel';
 import { LaunchDebugProvider } from './launchDebugProvider';
 import {
     buttonCode,
@@ -136,6 +137,20 @@ export function activate(context: vscode.ExtensionContext): void {
             telemetryReporter.sendTelemetryEvent('user/buttonPress', { 'VSCode.buttonCode': buttonCode.toggleScreencast });
             telemetryReporter.sendTelemetryEvent('view/screencast');
             ScreencastPanel.createOrShow(context,  telemetryReporter, target.websocketUrl, isJsDebugProxiedCDPConnection);
+        }));
+
+    context.subscriptions.push(vscode.commands.registerCommand(
+        `${SETTINGS_VIEW_NAME}.toggleAccessibilityInsights`,
+        (target?: CDPTarget, isJsDebugProxiedCDPConnection = false) => {
+            if (!target){
+                console.log('NO TARGET')
+                const errorMessage = 'No target selected';
+                telemetryReporter.sendTelemetryErrorEvent('command/a11y-insights/target', {message: errorMessage});
+                return;
+            }
+            telemetryReporter.sendTelemetryEvent('user/buttonPress', { 'VSCode.buttonCode': buttonCode.toggleAccessibilityInsights });
+            telemetryReporter.sendTelemetryEvent('view/accessibility-insights');
+            AccessibilityInsightsPanel.createOrShow(context, target.websocketUrl, isJsDebugProxiedCDPConnection);
         }));
 
     context.subscriptions.push(vscode.commands.registerCommand(
@@ -359,6 +374,7 @@ export async function attach(
                 useRetry = false;
                 const runtimeConfig = getRuntimeConfig(config);
                 DevToolsPanel.createOrShow(context, telemetryReporter, targetWebsocketUrl, runtimeConfig);
+                AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false)
             } else if (useRetry) {
                 // Wait for a little bit until we retry
                 await new Promise<void>(resolve => {

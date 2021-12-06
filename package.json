@@ -615,6 +615,10 @@
                     "name": "CSS Mirror Editing"
                 },
                 {
+                    "id": "vscode-edge-devtools-view.accessibility-insights",
+                    "name": "Accessibility Insights"
+                },
+                {
                     "id": "vscode-edge-devtools-view.help-links",
                     "name": "Helpful links"
                 }
@@ -663,6 +667,10 @@
             {
                 "view": "vscode-edge-devtools-view.mirror-editing",
                 "contents": "Please help us improve this feature by [leaving feedback here](https://github.com/microsoft/vscode-edge-devtools/issues/476)."
+            },
+            {
+                "view": "vscode-edge-devtools-view.accessibility-insights",
+                "contents": "Open Accessibility Insights.\n[Launch](command:vscode-edge-devtools-view.toggleAccessibilityInsights)"
             },
             {
                 "view": "vscode-edge-devtools-view.help-links",

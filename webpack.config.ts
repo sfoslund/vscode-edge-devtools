@@ -46,6 +46,17 @@ module.exports = (env: any) => {
         {
             ...commonConfig,
             entry: {
+                accessibilityInsights: './src/accessibilityInsights/main.ts',
+            },
+            name: 'accessibilityInsights',
+            output: {
+                filename: '[name].bundle.js',
+                path: path.resolve(__dirname, 'out/accessibilityInsights'),
+            },
+        },
+        {
+            ...commonConfig,
+            entry: {
                 extension: './src/extension.ts',
             },
             externals: {
