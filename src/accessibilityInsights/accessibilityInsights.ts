@@ -6,13 +6,14 @@ declare let window: Window & { axe: any };
 export class AccessibilityInsights {
     private cdpConnection = new AccessibilityInsightsCDPConnection();
     private automatedChecksButton: HTMLButtonElement;
+    private resultsArea: HTMLElement;
     // private screencastWrapper: HTMLElement;
     // private inactiveOverlay: HTMLElement;
     // private inspectMode = false;
 
     constructor() {
         this.automatedChecksButton = document.getElementById('automated-checks') as HTMLButtonElement;
-
+        this.resultsArea = document.getElementById('results') as HTMLButtonElement;
         this.automatedChecksButton.addEventListener('click', () => this.onAutomatedChecks());
 
         //register for events:
@@ -75,11 +76,22 @@ export class AccessibilityInsights {
 //         });
 //     }
 // }
+    private showResults(results: any): void {
+        this.resultsArea.append( `<pre>${JSON.stringify(results)}</pre>`)
+    }
 
     private onAutomatedChecks(): void {
-                this.cdpConnection.sendMessageToBackend("Runtime.evaluate", { expression: 'window.axe !== undefined' }, (results) => {
-                    this.cdpConnection.sendMessageToBackend('Page.TESTING', {results})
+        this.cdpConnection.sendMessageToBackend("Runtime.evaluate", { expression: 'window.axe.run(document)' }, (results) => {
+            this.cdpConnection.sendMessageToBackend('AccessibilityInsights.showResults', {results})
+            try {
+                this.cdpConnection.sendMessageToBackend("Runtime.awaitPromise", { promiseObjectId: results.result.objectId, returnByValue: true, generatePreview: true}, (result) => {
+                    this.cdpConnection.sendMessageToBackend('AccessibilityInsights.showResults', {result: result.result.value})
+                    this.showResults(result.result.value)
                 })
+            }catch(e) {
+                this.cdpConnection.sendMessageToBackend('AccessibilityInsights.showResults', {e})
+            }
+        })
         
             
            

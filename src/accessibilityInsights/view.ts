@@ -33,6 +33,8 @@ export class AccessibilityInsightsView {
                   Automated Checks
               </button>
           </div>
+          <div id="results">
+          </div>
       </div>
   </body>
   </html>
