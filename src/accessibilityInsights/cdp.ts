@@ -43,8 +43,7 @@ export class AccessibilityInsightsCDPConnection {
                     return true;
                 }
                 if(eventName === 'runAutomatedChecks') {
-
-                    for (const callback of this.eventCallbackMap.get('AccessibilityInsights.runAutomatedChecks') || []) {
+                    for (const callback of this.eventCallbackMap.get('runAutomatedChecks') || []) {
                         console.log(args)
                         callback(args);
                     }

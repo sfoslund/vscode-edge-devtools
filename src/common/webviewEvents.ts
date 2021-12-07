@@ -24,7 +24,7 @@ export const webviewEventNames: WebviewEvent[] = [
 ];
 
 export type FrameToolsEvent = 'sendMessageToBackend' | 'openInNewTab' | 'recordEnumeratedHistogram' |
-'recordPerformanceHistogram' | 'reportError' | 'openInEditor' | 'cssMirrorContent' | 'toggleScreencast';
+'recordPerformanceHistogram' | 'reportError' | 'openInEditor' | 'cssMirrorContent' | 'toggleScreencast'| 'runAutomatedChecks';
 export const FrameToolsEventNames: FrameToolsEvent[] = [
     'sendMessageToBackend',
     'openInNewTab',
@@ -34,6 +34,7 @@ export const FrameToolsEventNames: FrameToolsEvent[] = [
     'recordPerformanceHistogram',
     'reportError',
     'toggleScreencast',
+    'runAutomatedChecks'
 ];
 
 export type WebSocketEvent = 'open' | 'close' | 'error' | 'message';

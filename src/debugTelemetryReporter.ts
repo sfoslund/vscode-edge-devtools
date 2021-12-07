@@ -13,8 +13,8 @@ export class DebugTelemetryReporter extends TelemetryReporter {
         properties?: { [key: string]: string; },
         measurements?: { [key: string]: number; }): void {
         // eslint-disable-next-line no-console
-        console.log(
-            `${eventName}: ${JSON.stringify(properties)}, ${JSON.stringify(measurements)}`);
+        // console.log(
+        //     `${eventName}: ${JSON.stringify(properties)}, ${JSON.stringify(measurements)}`);
     }
 
     dispose(): Promise<void> {

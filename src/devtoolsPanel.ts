@@ -88,6 +88,7 @@ export class DevToolsPanel {
         this.panelSocket.on('copyText', msg => this.onSocketCopyText(msg));
         this.panelSocket.on('focusEditor', msg => this.onSocketFocusEditor(msg));
         this.panelSocket.on('focusEditorGroup', msg => this.onSocketFocusEditorGroup(msg));
+        this.panelSocket.on('runAutomatedChecks',  msg => this.runAutomatedChecks(msg))
 
         // This Websocket is only used on initial connection to determine the browser version.
         // The browser version is used to select the correct hashed version of the devtools
@@ -156,6 +157,10 @@ export class DevToolsPanel {
                 break;
         }
         encodeMessageForChannel(msg => this.panel.webview.postMessage(msg) as unknown as void, 'websocket', { event: e, message });
+    }
+
+    private runAutomatedChecks(msg: any){
+        console.log('in devtools', msg)
     }
 
     private onSocketReady() {

@@ -37,6 +37,7 @@ export class AccessibilityInsightsPanel {
             this.panelSocket = new PanelSocket(this.targetUrl, (e, msg) => this.postToWebview(e, msg));
         }
         this.panelSocket.on('close', () => this.onSocketClose());
+        this.panelSocket.on('websocket', msg => this.onSocketMessage(msg));
 
         // Handle closing
         this.panel.onDidDispose(() => {
@@ -50,6 +51,8 @@ export class AccessibilityInsightsPanel {
                 this.update();
             }
         }, this);
+
+        this.panelSocket.on('runAutomatedChecks', () => this.runAutomatedChecks());
 
         // Handle messages from the webview
         this.panel.webview.onDidReceiveMessage(message => {
@@ -69,12 +72,33 @@ export class AccessibilityInsightsPanel {
         this.dispose();
     }
 
+    private onSocketMessage(message: string) {
+        // If inspect mode is toggled on the DevTools, we need to let the standalone screencast
+        // know in order to enable hover events to be sent through.
+        if (message && message.includes('\\"method\\":\\"Page.runAutomatedChecks\\"')) {
+            try {
+                const cdpMsg = JSON.parse((JSON.parse(message) as {message: string}).message) as {method: string, params: {mode: string} };
+                if (cdpMsg.method === 'Page.runAutomatedChecks') {
+                   this.runAutomatedChecks()
+                }
+            } catch (e) {
+                // Ignore
+            }
+        }
+        // TODO: Handle message
+    }
+
     private update() {
         this.panel.webview.html = this.getHtmlForWebview();
     }
 
     private postToWebview(e: WebSocketEvent, message?: string) {
         encodeMessageForChannel(msg => this.panel.webview.postMessage(msg) as unknown as void, 'websocket', { event: e, message });
+    }
+
+    private runAutomatedChecks(){
+        console.log('PANEL MESSAGE?')
+
     }
 
     private getHtmlForWebview() {

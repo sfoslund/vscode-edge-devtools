@@ -218,7 +218,7 @@ export class Screencast {
     }
 
     private onReloadClick(): void {
-        this.cdpConnection.sendMessageToBackend('Page.reload', {});
+        //this.cdpConnection.sendMessageToBackend('Page.reload', {});
     }
 
     private onRotateClick(): void {

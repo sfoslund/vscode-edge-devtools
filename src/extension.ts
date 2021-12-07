@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-import { Browser, Target } from 'puppeteer-core';
+import { Browser, Page, Target } from 'puppeteer-core';
 import * as vscode from 'vscode';
 import * as debugCore from 'vscode-chrome-debug-core';
 import TelemetryReporter from 'vscode-extension-telemetry';
@@ -46,6 +46,7 @@ import {
 } from 'vscode-languageclient/node';
 import type { installFailed, showOutput } from 'vscode-webhint/dist/src/utils/notifications';
 import { activationEvents } from '../package.json';
+import path from 'path';
 
 let telemetryReporter: Readonly<TelemetryReporter>;
 let browserInstance: Browser;
@@ -140,8 +141,19 @@ export function activate(context: vscode.ExtensionContext): void {
         }));
 
     context.subscriptions.push(vscode.commands.registerCommand(
-        `${SETTINGS_VIEW_NAME}.toggleAccessibilityInsights`,
+        `${SETTINGS_VIEW_NAME}.runAutomatedChecks`,
         (target?: CDPTarget, isJsDebugProxiedCDPConnection = false) => {
+            if (!target){
+                const errorMessage = 'No target selected';
+                telemetryReporter.sendTelemetryErrorEvent('command/a11y-insights/target', {message: errorMessage});
+                return;
+            }
+            console.log("RUN CHECKS EXTENSION")
+        }));
+
+    context.subscriptions.push(vscode.commands.registerCommand(
+        `${SETTINGS_VIEW_NAME}.toggleAccessibilityInsights`,
+        (target?: CDPTarget) => {
             if (!target){
                 console.log('NO TARGET')
                 const errorMessage = 'No target selected';
@@ -150,7 +162,7 @@ export function activate(context: vscode.ExtensionContext): void {
             }
             telemetryReporter.sendTelemetryEvent('user/buttonPress', { 'VSCode.buttonCode': buttonCode.toggleAccessibilityInsights });
             telemetryReporter.sendTelemetryEvent('view/accessibilityInsights');
-            AccessibilityInsightsPanel.createOrShow(context, target.websocketUrl, isJsDebugProxiedCDPConnection);
+            AccessibilityInsightsPanel.createOrShow(context, target.websocketUrl, false);
         }));
 
     context.subscriptions.push(vscode.commands.registerCommand(
@@ -225,6 +237,7 @@ export function activate(context: vscode.ExtensionContext): void {
             telemetryReporter.sendTelemetryEvent('user/buttonPress', { 'VSCode.buttonCode': buttonCode.viewDocumentation });
             void vscode.env.openExternal(vscode.Uri.parse('https://docs.microsoft.com/en-us/microsoft-edge/visual-studio-code/microsoft-edge-devtools-extension'));
         }));
+
 
     const settingsConfig = vscode.workspace.getConfiguration(SETTINGS_STORE_NAME);
     const mirrorEditsEnabled = settingsConfig.get('mirrorEdits');
@@ -375,6 +388,7 @@ export async function attach(
                 const runtimeConfig = getRuntimeConfig(config);
                 DevToolsPanel.createOrShow(context, telemetryReporter, targetWebsocketUrl, runtimeConfig);
                 AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false)
+                await injectScripts(browserInstance);
             } else if (useRetry) {
                 // Wait for a little bit until we retry
                 await new Promise<void>(resolve => {
@@ -506,5 +520,35 @@ export async function launch(context: vscode.ExtensionContext, launchUrl?: strin
             }
         });
         await attach(context, url, config);
+    }
+
+}
+
+declare let window: Window & { axe: any };
+
+async function injectScripts(browserInstance: Browser): Promise<void> {
+    const page = await browserInstance.pages();
+    await injectAxeIfUndefined(page[0]);
+}
+
+async function injectScriptFile(page: Page, filePath: string): Promise<void> {
+        await page.addScriptTag({ path: filePath, type: 'module' });
+        await page.waitForNetworkIdle(); //wait for the script to be available
+}
+
+async function injectAxeIfUndefined(client: Page): Promise<void> {
+    const axeIsUndefined = await client.evaluate(() => {
+        return (window as any).axe === undefined;
+    }, null);
+
+    if (axeIsUndefined) {
+        await injectScriptFile(
+            client,
+            path.join(__dirname, '../node_modules/axe-core/axe.min.js'),
+        );
+
+        await client.waitForFunction(() => {
+            return (window as any).axe !== undefined;
+        });
     }
 }

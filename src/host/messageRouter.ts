@@ -65,7 +65,7 @@ export class MessageRouter {
         setTimeout(() => this.showLoadingError(), 10000);
     }
 
-    onMessageFromFrame(e: FrameToolsEvent, args: any[]): boolean {
+    onMessageFromFrame(e: any, args: any[]): boolean {
         switch(e) {
             case 'openInEditor':
                 const [url, line, column, ignoreTabChanges] = args;
@@ -97,7 +97,12 @@ export class MessageRouter {
             case 'toggleScreencast':
                 this.toggleScreencast()
                 return true;
+            case 'runAutomatedChecks':
+                const [id] = args
+                this.runAutomatedChecks(id)
+                return true
             default:
+                console.log(e, args)
                 // TODO: handle other types of messages from devtools
                 return false;
         }
@@ -163,6 +168,10 @@ export class MessageRouter {
     private toggleScreencast(): void {
         // Forward the data to the extension
         encodeMessageForChannel(msg => vscode.postMessage(msg, '*'), 'toggleScreencast');
+    }
+
+    private runAutomatedChecks(id: string): void {
+        encodeMessageForChannel(msg => vscode.postMessage(msg, '*'), 'runAutomatedChecks', id);
     }
 
     private cssMirrorContent(url: string, newContent: string): void {

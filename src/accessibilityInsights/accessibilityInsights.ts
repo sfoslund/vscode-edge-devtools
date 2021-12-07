@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 import { AccessibilityInsightsCDPConnection } from './cdp';
+declare let window: Window & { axe: any };
 
 export class AccessibilityInsights {
     private cdpConnection = new AccessibilityInsightsCDPConnection();
@@ -10,11 +11,9 @@ export class AccessibilityInsights {
     // private inspectMode = false;
 
     constructor() {
-        console.log('CREATING WEBVIEW')
         this.automatedChecksButton = document.getElementById('automated-checks') as HTMLButtonElement;
 
         this.automatedChecksButton.addEventListener('click', () => this.onAutomatedChecks());
-
 
         //register for events:
         //Page.automatedChecksCompleted
@@ -22,7 +21,7 @@ export class AccessibilityInsights {
         //Page.axeIsDefined
 
         //trigger events
-        this.cdpConnection.registerForEvent('AccessibilityInsights.runAutomatedChecks', result => this.onRunAutomatedChecks(result))
+       // this.cdpConnection.registerForEvent('Page.runAutomatedChecks', result => this.onRunAutomatedChecks(result))
         //runAutomatedChecks
         //toggleVisualizations
         //showResults
@@ -37,17 +36,65 @@ export class AccessibilityInsights {
         // this.cdpConnection.registerForEvent('DevTools.toggleInspect', result => this.onToggleInspect(result));
 
         this.cdpConnection.sendMessageToBackend('Page.enable', {});
+        this.cdpConnection.sendMessageToBackend('Runtime.enable', {});
 
     }
+
+
+    async runAxeScan(selector?: string): Promise<any> {
+
+            const axeRunOptions = {
+                runOnly: {
+                    type: 'tag',
+                    values: ['wcag2a', 'wcag21a', 'wcag2aa', 'wcag21aa'],
+                },
+            };
+            const results = await window.axe.run(document, axeRunOptions);
+            return results
+        }
+    
+
+// async function injectScriptFile(page: Page, filePath: string): Promise<void> {
+//         await page.addScriptTag({ path: filePath, type: 'module' });
+//         await page.waitForNetworkIdle(); //wait for the script to be available
+// }
+
+// async function injectAxeIfUndefined(client: Page): Promise<void> {
+//     const axeIsUndefined = await client.evaluate(() => {
+//         return (window as any).axe === undefined;
+//     }, null);
+
+//     if (axeIsUndefined) {
+//         await injectScriptFile(
+//             client,
+//             path.join(__dirname, '../node_modules/axe-core/axe.min.js'),
+//         );
+
+//         await client.waitForFunction(() => {
+//             return (window as any).axe !== undefined;
+//         });
+//     }
+// }
 
     private onAutomatedChecks(): void {
-        console.log('CLICKED')
-        this.cdpConnection.sendMessageToBackend('Page.runAutomatedChecks', {})
+                this.cdpConnection.sendMessageToBackend("Runtime.evaluate", { expression: 'window.axe !== undefined' }, (results) => {
+                    this.cdpConnection.sendMessageToBackend('Page.TESTING', {results})
+                })
+        
+            
+           
+        // const evaluationParams = {
+            
+        //      async () =>  { return await this.runAxeScan() }
+        // }
+      
+       // this.cdpConnection.sendMessageToBackend('Page.runAutomatedChecks', {id: 'HELLO'})
     }
 
-    private onRunAutomatedChecks(result: any): void {
-        console.log(result)
-    }
+    // private onRunAutomatedChecks(result: any): void {
+    //     console.log(result)
+    //     //this.cdpConnection.sendMessageToBackend('Page.navigate', { result, url: 'https://accessibilityinsights.io' })
+    // }
 
 
     // private updateHistory(): void {
