@@ -42,7 +42,10 @@ export class AccessibilityInsights {
 
     private onAutomatedChecks(): void {
         console.log('CLICKED')
-        this.cdpConnection.sendMessageToBackend('Page.runAutomatedChecks', {})
+        const params = {
+            url: 'https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-navigate',
+        };
+        this.cdpConnection.sendMessageToBackend('Page.navigate', params)
     }
 
     private onRunAutomatedChecks(result: any): void {

@@ -219,6 +219,11 @@ export class Screencast {
 
     private onReloadClick(): void {
         this.cdpConnection.sendMessageToBackend('Page.reload', {});
+        
+        // const params = {
+        //     url: 'https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-navigate',
+        // };
+        // this.cdpConnection.sendMessageToBackend('Page.navigate', params)
     }
 
     private onRotateClick(): void {
