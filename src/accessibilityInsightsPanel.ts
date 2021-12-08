@@ -75,11 +75,15 @@ export class AccessibilityInsightsPanel {
     private onSocketMessage(message: string) {
         // If inspect mode is toggled on the DevTools, we need to let the standalone screencast
         // know in order to enable hover events to be sent through.
-        if (message && message.includes('\\"method\\":\\"Page.runAutomatedChecks\\"')) {
+        if (message && message.includes('AutomatedChecks')) {
             try {
                 const cdpMsg = JSON.parse((JSON.parse(message) as {message: string}).message) as {method: string, params: {mode: string} };
                 if (cdpMsg.method === 'Page.runAutomatedChecks') {
                    this.runAutomatedChecks()
+                }
+                if(cdpMsg.method === 'AccessibilityInsights.showAutomatedChecksResults'){
+                    console.log(cdpMsg)
+                    //TODO: use results from message
                 }
             } catch (e) {
                 // Ignore
