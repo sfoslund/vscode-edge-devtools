@@ -79,6 +79,7 @@ module.exports = (env: any) => {
                     { from: './src/common/styles.css', to: 'common/styles.css'},
                     { from: 'icon.png', to: 'icon.png'},
                     { from: 'src/screencast/view.css', to: 'screencast/view.css'},
+                    {from: 'src/injected/injected.css', to: 'injected/injected.css'}
                     ],
                 }),
                 // These must also be defined in the jest section of package.json for tests to pass

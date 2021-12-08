@@ -38,6 +38,7 @@ export class AccessibilityInsights {
         this.cdpConnection.sendMessageToBackend('Page.enable', {});
         this.cdpConnection.sendMessageToBackend('Runtime.enable', {});
 
+
     }
 
 
@@ -45,12 +46,29 @@ export class AccessibilityInsights {
         this.resultsArea.append( `${JSON.stringify(results)}`)
     }
 
+    private highlightIssuesForSelector(selector: string){
+        this.cdpConnection.sendMessageToBackend("Runtime.evaluate", { expression: `document.querySelector('${selector}').classList.add('insights-pseudo-selector-style-container')`}, (result) => {
+            this.cdpConnection.sendMessageToBackend('AccessibilityInsights.showAutomatedChecksResults', {method: 'evaluate', result})
+        });
+    }
+
     public onAutomatedChecks(): void {
+
         this.cdpConnection.sendMessageToBackend("Runtime.evaluate", { expression: 'window.axe.run(document, {runOnly: { type: "tag", values: ["wcag2a", "wcag21a", "wcag2aa", "wcag21aa"]}})' }, (results) => {
             this.cdpConnection.sendMessageToBackend('AccessibilityInsights.showResults', {results})
             try {
                 this.cdpConnection.sendMessageToBackend("Runtime.awaitPromise", { promiseObjectId: results.result.objectId, returnByValue: true, generatePreview: true}, (result) => {
                     this.cdpConnection.sendMessageToBackend('AccessibilityInsights.showAutomatedChecksResults', {result: result.result.value})
+                    const issues = result.result.value.violations;
+                    issues.forEach((issue: { nodes: { target: any[]; }[]; }) => {
+                        issue.nodes.forEach(node => {
+                            const targets = node.target;
+                            targets.forEach(selector => {
+                                this.highlightIssuesForSelector(selector);
+
+                            })
+                        })
+                    })
                     this.showResults(result.result.value)
                 })
             }catch(e) {

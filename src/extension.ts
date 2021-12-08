@@ -125,6 +125,7 @@ export function activate(context: vscode.ExtensionContext): void {
             telemetryReporter.sendTelemetryEvent('view/devtools');
             const runtimeConfig = getRuntimeConfig();
             DevToolsPanel.createOrShow(context, telemetryReporter, target.websocketUrl, runtimeConfig);
+            AccessibilityInsightsPanel.createOrShow(context, target.websocketUrl, false);
         }));
 
     context.subscriptions.push(vscode.commands.registerCommand(
@@ -140,16 +141,16 @@ export function activate(context: vscode.ExtensionContext): void {
             ScreencastPanel.createOrShow(context,  telemetryReporter, target.websocketUrl, isJsDebugProxiedCDPConnection);
         }));
 
-    context.subscriptions.push(vscode.commands.registerCommand(
-        `${SETTINGS_VIEW_NAME}.runAutomatedChecks`,
-        (target?: CDPTarget, isJsDebugProxiedCDPConnection = false) => {
-            if (!target){
-                const errorMessage = 'No target selected';
-                telemetryReporter.sendTelemetryErrorEvent('command/a11y-insights/target', {message: errorMessage});
-                return;
-            }
-            console.log("RUN CHECKS EXTENSION")
-        }));
+    // context.subscriptions.push(vscode.commands.registerCommand(
+    //     `${SETTINGS_VIEW_NAME}.runAutomatedChecks`,
+    //     (target?: CDPTarget, isJsDebugProxiedCDPConnection = false) => {
+    //         if (!target){
+    //             const errorMessage = 'No target selected';
+    //             telemetryReporter.sendTelemetryErrorEvent('command/a11y-insights/target', {message: errorMessage});
+    //             return;
+    //         }
+    //         console.log("RUN CHECKS EXTENSION")
+    //     }));
 
     context.subscriptions.push(vscode.commands.registerCommand(
         `${SETTINGS_VIEW_NAME}.toggleAccessibilityInsights`,
@@ -387,8 +388,8 @@ export async function attach(
                 useRetry = false;
                 const runtimeConfig = getRuntimeConfig(config);
                 DevToolsPanel.createOrShow(context, telemetryReporter, targetWebsocketUrl, runtimeConfig);
-                AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false)
-                await injectScripts(browserInstance);
+                AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false);
+
             } else if (useRetry) {
                 // Wait for a little bit until we retry
                 await new Promise<void>(resolve => {
@@ -454,6 +455,8 @@ export async function attachToCurrentDebugTarget(context: vscode.ExtensionContex
         const runtimeConfig = getRuntimeConfig();
         runtimeConfig.isJsDebugProxiedCDPConnection = true;
         DevToolsPanel.createOrShow(context, telemetryReporter, targetWebsocketUrl, runtimeConfig);
+        AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false);
+
     } else {
         const errorMessage = 'Unable to attach DevTools to current debug session.';
         telemetryReporter.sendTelemetryErrorEvent('command/attachToCurrentDebugTarget/devtools', {message: errorMessage});
@@ -481,6 +484,8 @@ export async function launch(context: vscode.ExtensionContext, launchUrl?: strin
         telemetryReporter.sendTelemetryEvent('command/launch/devtools', telemetryProps);
         const runtimeConfig = getRuntimeConfig(config);
         DevToolsPanel.createOrShow(context, telemetryReporter, target.webSocketDebuggerUrl, runtimeConfig);
+        AccessibilityInsightsPanel.createOrShow(context, target.webSocketDebuggerUrl, false);
+
     } else {
         // Launch a new instance
         const browserPath = await getBrowserPath(config);
@@ -519,6 +524,7 @@ export async function launch(context: vscode.ExtensionContext, launchUrl?: strin
                 reportUrlType(target.url(), telemetryReporter);
             }
         });
+        await injectScripts(browserInstance);
         await attach(context, url, config);
     }
 
@@ -529,11 +535,12 @@ declare let window: Window & { axe: any };
 async function injectScripts(browserInstance: Browser): Promise<void> {
     const page = await browserInstance.pages();
     await injectAxeIfUndefined(page[0]);
+    await page[0].addStyleTag({ path: path.join(__dirname, './injected/injected.css')})
 }
 
 async function injectScriptFile(page: Page, filePath: string): Promise<void> {
-        await page.addScriptTag({ path: filePath, type: 'module' });
-        await page.waitForNetworkIdle(); //wait for the script to be available
+    await page.addScriptTag({ path: filePath, type: 'module' });
+    await page.waitForNetworkIdle(); //wait for the script to be available
 }
 
 async function injectAxeIfUndefined(client: Page): Promise<void> {
