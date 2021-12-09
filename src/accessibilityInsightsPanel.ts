@@ -20,6 +20,7 @@ export class AccessibilityInsightsPanel {
     private targetUrl: string
     private panelSocket: PanelSocket;
     static instance: AccessibilityInsightsPanel | undefined;
+    private readonly diagnosticsCollection: vscode.DiagnosticCollection;
 
     private constructor(
         panel: vscode.WebviewPanel,
@@ -59,6 +60,7 @@ export class AccessibilityInsightsPanel {
             this.panelSocket.onMessageFromWebview(message);
         }, this);
 
+        this.diagnosticsCollection = vscode.languages.createDiagnosticCollection('Accessibility Insights');
     }
 
     dispose(): void {
@@ -79,31 +81,51 @@ export class AccessibilityInsightsPanel {
         return vscode.DiagnosticSeverity.Warning
     }
 
+    private async getDiagnosticCodeLocation(url: string): Promise<[vscode.Uri, vscode.Range]> {
+        try {
+            const uri = vscode.Uri.parse(url);
+            const document = await vscode.workspace.openTextDocument(uri);
+
+            // TODO this selects the whole doc, should get more specific
+            var firstLine = document.lineAt(0);
+            var lastLine = document.lineAt(document.lineCount - 1);
+            const range = new vscode.Range(firstLine.range.start, lastLine.range.end);
+            return [uri, range];
+        } catch {
+            // TODO find a better fallback-> this one causes an error if the user clicks on it in the problem pane
+            return [vscode.Uri.parse('Accessibility Insights', false), new vscode.Range(0,0,0,0)]; 
+        }
+    }
+
     private onSocketMessage(message: string) {
         // If inspect mode is toggled on the DevTools, we need to let the standalone screencast
         // know in order to enable hover events to be sent through.
         if (message && message.includes('AutomatedChecks')) {
             try {
                 const cdpMsg = JSON.parse((JSON.parse(message) as {message: string}).message) as 
-                    {method: string, params: {result: {violations: {impact: string, help: string}[]}}};
+                    {method: string, params: {result: {violations: {id: string, impact: string, help: string}[], url: string}}};
                 if (cdpMsg.method === 'Page.runAutomatedChecks') {
                    this.runAutomatedChecks()
                 }
-                if(cdpMsg.method === 'AccessibilityInsights.showAutomatedChecksResults'){
-                    console.log(cdpMsg)
-
-                    const diagCollection = vscode.languages.createDiagnosticCollection('Accessibility Insights')
-                    const uri = vscode.Uri.parse('Accessibility Insights', false); // TODO point to correct doc
-                    const result : vscode.Diagnostic[] = [];
-
-                    for (let violation of cdpMsg.params.result.violations) {
-                        result.push({code: 0,
-                            message: violation.help,
-                            severity: this.convertImpactToDiagSeverity(violation.impact),
-                            range: new vscode.Range(0, 0, 0, 0) // TODO point to correct area
-                        })
+                if(cdpMsg.method === 'AccessibilityInsights.showAutomatedChecksResults') {
+                    if (cdpMsg.params.result.violations.length === 0) {
+                        vscode.window.showInformationMessage(`No accessibility violations detected in ${cdpMsg.params.result.url}`);
+                        this.diagnosticsCollection.clear();
+                        return;
                     }
-                    diagCollection.set(uri, result)
+
+                    this.getDiagnosticCodeLocation(cdpMsg.params.result.url).then(diagLocation => {
+                        const result : vscode.Diagnostic[] = [];
+                        for (let violation of cdpMsg.params.result.violations) {
+                            result.push({code: violation.id,
+                                message: violation.help,
+                                severity: this.convertImpactToDiagSeverity(violation.impact),
+                                range: diagLocation[1]
+                            })
+                        }
+                        this.diagnosticsCollection.clear();
+                        this.diagnosticsCollection.set(diagLocation[0], result);
+                    });
                 }
             } catch (e) {
                 // Ignore
