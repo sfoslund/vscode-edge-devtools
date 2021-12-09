@@ -20,6 +20,7 @@ export class AccessibilityInsightsPanel {
     private targetUrl: string
     private panelSocket: PanelSocket;
     static instance: AccessibilityInsightsPanel | undefined;
+    private readonly diagnosticsCollection: vscode.DiagnosticCollection;
 
     private constructor(
         panel: vscode.WebviewPanel,
@@ -59,6 +60,7 @@ export class AccessibilityInsightsPanel {
             this.panelSocket.onMessageFromWebview(message);
         }, this);
 
+        this.diagnosticsCollection = vscode.languages.createDiagnosticCollection('Accessibility Insights');
     }
 
     dispose(): void {
@@ -79,6 +81,22 @@ export class AccessibilityInsightsPanel {
         return vscode.DiagnosticSeverity.Warning
     }
 
+    private getDiagnosticCodeLocation(url: string): [vscode.Uri, vscode.Range] {
+        try {
+            const uri = vscode.Uri.parse(url);
+            // const document = // TODO get doc
+
+            // TODO this selects the whole doc, should get more specific
+            // var firstLine = document.lineAt(0);
+            // var lastLine = document.lineAt(document.lineCount - 1);
+            const range = new vscode.Range(0,0,0,0);//new vscode.Range(firstLine.range.start, lastLine.range.end);
+            return [uri, range];
+        } catch {
+            // TODO find a better fallback-> this one causes an error if the user clicks on it in the problem pane
+            return [vscode.Uri.parse('Accessibility Insights', false), new vscode.Range(0,0,0,0)]; 
+        }
+    }
+
     private onSocketMessage(message: string) {
         // If inspect mode is toggled on the DevTools, we need to let the standalone screencast
         // know in order to enable hover events to be sent through.
@@ -88,22 +106,19 @@ export class AccessibilityInsightsPanel {
                 if (method === 'Page.runAutomatedChecks') {
                    this.runAutomatedChecks()
                 }
-                if(method === 'AccessibilityInsights.showAutomatedChecksResults'){
-                    const { result } = params;
-                    //TODO: use results from message
-                    const diagCollection = vscode.languages.createDiagnosticCollection('Accessibility Insights')
-                    const uri = vscode.Uri.parse('Accessibility Insights', false); // TODO point to correct doc
-                    const resultDisplay : vscode.Diagnostic[] = [];
-
-                    for (let violation of result.violations) {
-                        resultDisplay.push({code: 0,
-                            message: violation.help,
-                            severity: this.convertImpactToDiagSeverity(violation.impact),
-                            range: new vscode.Range(0, 0, 0, 0) // TODO point to correct area
-                        })
-                    }
-                    diagCollection.set(uri, resultDisplay)
+            if(method === 'AccessibilityInsights.showAutomatedChecksResults') {
+                const [uri, range] = this.getDiagnosticCodeLocation(params.result.url);
+                const result : vscode.Diagnostic[] = [];
+                for (let violation of params.result.violations) {
+                    result.push({code: violation.id,
+                        message: violation.help,
+                        severity: this.convertImpactToDiagSeverity(violation.impact),
+                        range: range
+                    })
                 }
+                this.diagnosticsCollection.clear();
+                this.diagnosticsCollection.set(uri, result);
+            }
                 if(method === 'AccessibilityInsights.logAutomatedChecks'){
                     console.log({params, message})
                 }
