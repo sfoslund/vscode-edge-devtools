@@ -141,7 +141,8 @@
   margin-bottom: 2em !important;
 }
 
-.insights-pseudo-selector-style-container {
+.insights-pseudo-selector-style-container *::before,
+.insights-pseudo-selector-style-container *::after {
   border: 1px solid red;
 }
 

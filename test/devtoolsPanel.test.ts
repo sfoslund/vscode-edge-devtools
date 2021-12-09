@@ -18,7 +18,7 @@ import {
     Mocked,
     Writable,
 } from "./helpers/helpers";
-import { IRuntimeConfig, SETTINGS_PREF_DEFAULTS, SETTINGS_PREF_NAME } from "../src/utils";
+import { IRuntimeConfig, SETTINGS_PREF_DEFAULTS, SETTINGS_PREF_NAME } from "../src/utils/utils";
 import { BrowserVersionDetectionSocket } from "../src/versionSocketConnection";
 
 jest.mock("vscode", () => createFakeVSCode(), { virtual: true });

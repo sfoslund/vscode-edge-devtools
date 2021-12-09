@@ -3,7 +3,7 @@
 
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { IRemoteTargetJson } from './utils';
+import { IRemoteTargetJson } from './utils/utils';
 
 export class CDPTarget extends vscode.TreeItem {
     readonly targetJson: IRemoteTargetJson;

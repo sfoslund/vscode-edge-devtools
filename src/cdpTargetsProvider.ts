@@ -6,7 +6,7 @@ import TelemetryReporter from 'vscode-extension-telemetry';
 import * as path from 'path';
 import * as fs from 'fs';
 import { CDPTarget } from './cdpTarget';
-import { fixRemoteWebSocket, getListOfTargets, getRemoteEndpointSettings, IRemoteTargetJson, isLocalResource, SETTINGS_STORE_NAME } from './utils';
+import { fixRemoteWebSocket, getListOfTargets, getRemoteEndpointSettings, IRemoteTargetJson, isLocalResource, SETTINGS_STORE_NAME } from './utils/utils';
 import { IncomingMessage } from 'http';
 import https = require('https');
 import { LaunchConfigManager } from './launchConfigManager';

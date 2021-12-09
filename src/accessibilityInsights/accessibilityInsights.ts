@@ -5,14 +5,12 @@ import { AccessibilityInsightsCDPConnection } from './cdp';
 export class AccessibilityInsights {
     private cdpConnection = new AccessibilityInsightsCDPConnection();
     private automatedChecksButton: HTMLButtonElement;
-    private resultsArea: HTMLElement;
     // private screencastWrapper: HTMLElement;
     // private inactiveOverlay: HTMLElement;
     // private inspectMode = false;
 
     constructor() {
         this.automatedChecksButton = document.getElementById('automated-checks') as HTMLButtonElement;
-        this.resultsArea = document.getElementById('results') as HTMLButtonElement;
         this.automatedChecksButton.addEventListener('click', () => this.onAutomatedChecks());
 
         //register for events:
@@ -41,16 +39,15 @@ export class AccessibilityInsights {
 
     }
 
-
-    private showResults(results: any): void {
-        this.resultsArea.append( `${JSON.stringify(results)}`)
-    }
-
     private highlightIssuesForSelector(selector: string){
         this.cdpConnection.sendMessageToBackend("Runtime.evaluate", { expression: `document.querySelector('${selector}').classList.add('insights-pseudo-selector-style-container')`}, (result) => {
-            this.cdpConnection.sendMessageToBackend('AccessibilityInsights.showAutomatedChecksResults', {method: 'evaluate', result})
+            this.cdpConnection.sendMessageToBackend('AccessibilityInsights.logAutomatedChecks', {method: 'evaluate', result})
         });
     }
+
+    //look at issue element
+    //get issue element coordinates and size
+    //create shadow version box at coordinates with size
 
     public onAutomatedChecks(): void {
 
@@ -69,10 +66,9 @@ export class AccessibilityInsights {
                             })
                         })
                     })
-                    this.showResults(result.result.value)
                 })
             }catch(e) {
-                this.cdpConnection.sendMessageToBackend('AccessibilityInsights.showResults', {e})
+                this.cdpConnection.sendMessageToBackend('AccessibilityInsights.logAutomatedChecks', {e})
             }
         })
 

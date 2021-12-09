@@ -33,7 +33,7 @@ import {
     reportChangedExtensionSetting,
     reportExtensionSettings,
     reportUrlType,
-} from './utils';
+} from './utils/utils';
 import { LaunchConfigManager } from './launchConfigManager';
 import { ErrorReporter } from './errorReporter';
 import { SettingsProvider } from './common/settingsProvider';
@@ -533,9 +533,15 @@ export async function launch(context: vscode.ExtensionContext, launchUrl?: strin
 declare let window: Window & { axe: any };
 
 async function injectScripts(browserInstance: Browser): Promise<void> {
-    const page = await browserInstance.pages();
-    await injectAxeIfUndefined(page[0]);
-    await page[0].addStyleTag({ path: path.join(__dirname, './injected/injected.css')})
+    const pages = await browserInstance.pages();
+    const page = pages[0];
+    await injectAxeIfUndefined(page);
+    await createAccessibilityInsightsRootContainer(page);
+    try {
+     await createShadowContainer(page, path.join(__dirname, './injected/injected.css'));
+    }catch(error){
+        console.log(error)
+    }
 }
 
 async function injectScriptFile(page: Page, filePath: string): Promise<void> {
@@ -543,19 +549,85 @@ async function injectScriptFile(page: Page, filePath: string): Promise<void> {
     await page.waitForNetworkIdle(); //wait for the script to be available
 }
 
-async function injectAxeIfUndefined(client: Page): Promise<void> {
-    const axeIsUndefined = await client.evaluate(() => {
+async function injectAxeIfUndefined(page: Page): Promise<void> {
+    const axeIsUndefined = await page.evaluate(() => {
         return (window as any).axe === undefined;
     }, null);
 
     if (axeIsUndefined) {
         await injectScriptFile(
-            client,
+            page,
             path.join(__dirname, '../node_modules/axe-core/axe.min.js'),
         );
 
-        await client.waitForFunction(() => {
+        await page.waitForFunction(() => {
             return (window as any).axe !== undefined;
         });
     }
+}
+
+//creates shadowDOM and has a piece of state pointing to it
+//add elements to shadowDOM for each issue
+// * detect the clientRect for each issue element
+// * visualization that corresponds to that element
+const rootContainerId = 'accessibility-insights-root-container';
+
+async function createShadowHost(page: Page): Promise<HTMLElement> {
+
+    return await page.evaluate((rootContainerId) => {
+        const rootContainer = document.getElementById(rootContainerId)
+        if (rootContainer == null) {
+            throw Error('expected rootContainer to be defined and not null');
+        }
+        const host = document.createElement('div');
+        host.id = 'insights-shadow-host';
+        rootContainer.append(host);
+        return host;
+    }, rootContainerId)
+}
+
+async function createShadowContainer(page: Page, pathName: string): Promise<HTMLElement> {
+    const existingHosts = await page.$$(`#insights-shadow-host`);
+
+    existingHosts.forEach(async (element) => {
+        await page.evaluate((element) => element.remove(), element);
+    });
+    await createShadowHost(page);
+    const shadowHostElement = await page.$(`#insights-shadow-host`);
+    return await page.evaluate((shadowHostElement, pathName) => {
+        shadowHostElement.attachShadow({mode: 'open'});
+        const container = document.createElement('div');
+        container.id = 'insights-shadow-container';
+        shadowHostElement.append(container);
+        const shadowContainer = shadowHostElement.firstChild as HTMLElement;
+        const styleElement = document.createElement('link');
+        styleElement.rel = 'stylesheet';
+        styleElement.href = pathName;
+        styleElement.type = 'text/css';
+        shadowContainer.appendChild(styleElement);
+        return shadowContainer;
+    }, shadowHostElement, pathName)
+   
+}
+
+async function createAccessibilityInsightsRootContainer(page: Page): Promise<void>{
+    try {
+        const existingRoots = await page.$$(`#${rootContainerId}`);
+
+        existingRoots.forEach(async (element) => {
+            await page.evaluate((element) => element.remove(), element);
+        });
+        await page.evaluate((id) => {
+            const root = document.createElement('div');
+            root.id = id;
+            document.body.append(root);
+        }, rootContainerId)
+    }catch(err){
+        console.log(err)
+    }
+
+    // this.htmlElementUtils.deleteAllElements(`#${id}`);
+    // const root = document.createElement('div');
+    // root.id = id;
+    // this.htmlElementUtils.getBody().appendChild(root);
 }

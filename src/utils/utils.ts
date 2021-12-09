@@ -10,12 +10,12 @@ import * as url from 'url';
 import * as vscode from 'vscode';
 import * as debugCore from 'vscode-chrome-debug-core';
 import TelemetryReporter from 'vscode-extension-telemetry';
-import packageJson from '../package.json';
-import { DebugTelemetryReporter } from './debugTelemetryReporter';
+import packageJson from '../../package.json';
+import { DebugTelemetryReporter } from '../debugTelemetryReporter';
 
 import puppeteer from 'puppeteer-core';
-import { ErrorReporter } from './errorReporter';
-import { ErrorCodes } from './common/errorCodes';
+import { ErrorReporter } from '../errorReporter';
+import { ErrorCodes } from '../common/errorCodes';
 
 export type BrowserFlavor = 'Default' | 'Stable' | 'Beta' | 'Dev' | 'Canary';
 

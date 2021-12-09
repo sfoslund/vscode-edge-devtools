@@ -8,7 +8,7 @@ import {
     SETTINGS_DEFAULT_ATTACH_INTERVAL,
     SETTINGS_DEFAULT_EDGE_DEBUGGER_PORT,
     SETTINGS_STORE_NAME,
-} from './utils';
+} from './utils/utils';
 import { providedDebugConfig } from './launchConfigManager';
 
 type AttachCallback = (

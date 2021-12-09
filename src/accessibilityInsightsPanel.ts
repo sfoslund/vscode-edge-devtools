@@ -10,7 +10,7 @@ import { JsDebugProxyPanelSocket } from './JsDebugProxyPanelSocket';
 import { PanelSocket } from './panelSocket';
 import {
     SETTINGS_STORE_NAME,
-} from './utils';
+} from './utils/utils';
 import { AccessibilityInsightsView } from './accessibilityInsights/view';
 
 export class AccessibilityInsightsPanel {
@@ -72,18 +72,40 @@ export class AccessibilityInsightsPanel {
         this.dispose();
     }
 
+    private convertImpactToDiagSeverity(impact: string) : vscode.DiagnosticSeverity {
+        if (impact == 'serious'){
+            return vscode.DiagnosticSeverity.Error
+        }
+        return vscode.DiagnosticSeverity.Warning
+    }
+
     private onSocketMessage(message: string) {
         // If inspect mode is toggled on the DevTools, we need to let the standalone screencast
         // know in order to enable hover events to be sent through.
         if (message && message.includes('AutomatedChecks')) {
             try {
-                const cdpMsg = JSON.parse((JSON.parse(message) as {message: string}).message) as {method: string, params: {mode: string} };
-                if (cdpMsg.method === 'Page.runAutomatedChecks') {
+                const { method, params } = JSON.parse((JSON.parse(message) as {message: string}).message) as {method: string, params: any };
+                if (method === 'Page.runAutomatedChecks') {
                    this.runAutomatedChecks()
                 }
-                if(cdpMsg.method === 'AccessibilityInsights.showAutomatedChecksResults'){
-                    console.log(cdpMsg)
+                if(method === 'AccessibilityInsights.showAutomatedChecksResults'){
+                    const { result } = params;
                     //TODO: use results from message
+                    const diagCollection = vscode.languages.createDiagnosticCollection('Accessibility Insights')
+                    const uri = vscode.Uri.parse('Accessibility Insights', false); // TODO point to correct doc
+                    const resultDisplay : vscode.Diagnostic[] = [];
+
+                    for (let violation of result.violations) {
+                        resultDisplay.push({code: 0,
+                            message: violation.help,
+                            severity: this.convertImpactToDiagSeverity(violation.impact),
+                            range: new vscode.Range(0, 0, 0, 0) // TODO point to correct area
+                        })
+                    }
+                    diagCollection.set(uri, resultDisplay)
+                }
+                if(method === 'AccessibilityInsights.logAutomatedChecks'){
+                    console.log({params, message})
                 }
             } catch (e) {
                 // Ignore

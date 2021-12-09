@@ -3,7 +3,7 @@
 
 import * as vscode from 'vscode';
 import * as fse from 'fs-extra';
-import { SETTINGS_STORE_NAME } from './utils';
+import { SETTINGS_STORE_NAME } from './utils/utils';
 export type LaunchConfig = 'None' | 'Unsupported' | vscode.DebugConfiguration;
 
 export const providedDebugConfig: vscode.DebugConfiguration = {

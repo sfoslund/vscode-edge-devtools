@@ -11,7 +11,7 @@ import {
     removeTrailingSlash,
     SETTINGS_STORE_NAME,
     SETTINGS_VIEW_NAME,
-} from "../src/utils";
+} from "../src/utils/utils";
 
 jest.mock("vscode", () => createFakeVSCode(), { virtual: true });
 
@@ -21,7 +21,7 @@ describe("extension", () => {
     describe("activate", () => {
         let context: ExtensionContext;
         let commandMock: jest.Mock;
-        let mockUtils: Partial<Mocked<typeof import("../src/utils")>>;
+        let mockUtils: Partial<Mocked<typeof import("../src/utils/utils")>>;
         let mockRegisterTree: jest.Mock;
         let mockProviderRefresh: jest.Mock;
         let mockProviderConstructor: jest.Mock;
@@ -179,7 +179,7 @@ describe("extension", () => {
         let target: any;
         let mocks: {
             panel: any,
-            utils: Partial<Mocked<typeof import("../src/utils")>>,
+            utils: Partial<Mocked<typeof import("../src/utils/utils")>>,
             vscode: any,
         };
         let mockTelemetry: Mocked<Readonly<TelemetryReporter>>;
@@ -386,7 +386,7 @@ describe("extension", () => {
     describe("launch", () => {
         const fakeBrowser = {on: () => null};
         let mockReporter: Mocked<Readonly<TelemetryReporter>>;
-        let mockUtils: Partial<Mocked<typeof import("../src/utils")>>;
+        let mockUtils: Partial<Mocked<typeof import("../src/utils/utils")>>;
         let mockPanel: Partial<Mocked<typeof import("../src/devtoolsPanel")>>;
 
         beforeEach(() => {
@@ -552,7 +552,7 @@ describe("extension", () => {
     describe("attachToCurrentDebugTarget", () => {
         let mocks: {
             panel: any,
-            utils: Partial<Mocked<typeof import("../src/utils")>>,
+            utils: Partial<Mocked<typeof import("../src/utils/utils")>>,
             vscode: any,
         };
         let mockTelemetry: Mocked<Readonly<TelemetryReporter>>;

@@ -31,7 +31,7 @@ import {
     SETTINGS_WEBVIEW_NAME,
     SETTINGS_VIEW_NAME,
     CDN_FALLBACK_REVISION,
-} from './utils';
+} from './utils/utils';
 import { ErrorReporter } from './errorReporter';
 import { ErrorCodes } from './common/errorCodes';
 import { ScreencastPanel } from './screencastPanel';
