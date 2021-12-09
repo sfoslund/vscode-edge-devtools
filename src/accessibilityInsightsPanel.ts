@@ -84,12 +84,12 @@ export class AccessibilityInsightsPanel {
     private getDiagnosticCodeLocation(url: string): [vscode.Uri, vscode.Range] {
         try {
             const uri = vscode.Uri.parse(url);
-            const document = // TODO get doc
+            // const document = // TODO get doc
 
             // TODO this selects the whole doc, should get more specific
-            var firstLine = document.lineAt(0);
-            var lastLine = document.lineAt(document.lineCount - 1);
-            const range = new vscode.Range(firstLine.range.start, lastLine.range.end);
+            // var firstLine = document.lineAt(0);
+            // var lastLine = document.lineAt(document.lineCount - 1);
+            const range = new vscode.Range(0,0,0,0);//new vscode.Range(firstLine.range.start, lastLine.range.end);
             return [uri, range];
         } catch {
             // TODO find a better fallback-> this one causes an error if the user clicks on it in the problem pane
