@@ -107,6 +107,7 @@ export class AccessibilityInsightsPanel {
                    this.runAutomatedChecks()
                 }
             if(method === 'AccessibilityInsights.showAutomatedChecksResults') {
+                console.log({params, message})
                 const [uri, range] = this.getDiagnosticCodeLocation(params.result.url);
                 const result : vscode.Diagnostic[] = [];
                 for (let violation of params.result.violations) {

@@ -142,7 +142,7 @@
 }
 
 .insights-pseudo-selector-style-container *::before,
-.insights-pseudo-selector-style-container *::after {
+.insights-pseudo-selector-style-container *::after, .insights-pseudo-selector-style-container {
   border: 1px solid red;
 }
 

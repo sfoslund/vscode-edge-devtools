@@ -163,7 +163,7 @@ export function activate(context: vscode.ExtensionContext): void {
             }
             telemetryReporter.sendTelemetryEvent('user/buttonPress', { 'VSCode.buttonCode': buttonCode.toggleAccessibilityInsights });
             telemetryReporter.sendTelemetryEvent('view/accessibilityInsights');
-            AccessibilityInsightsPanel.createOrShow(context, target.websocketUrl, false);
+            injectScripts(browserInstance);
         }));
 
     context.subscriptions.push(vscode.commands.registerCommand(
@@ -533,12 +533,13 @@ export async function launch(context: vscode.ExtensionContext, launchUrl?: strin
 declare let window: Window & { axe: any };
 
 async function injectScripts(browserInstance: Browser): Promise<void> {
-    const pages = await browserInstance.pages();
-    const page = pages[0];
-    await injectAxeIfUndefined(page);
-    await createAccessibilityInsightsRootContainer(page);
     try {
-     await createShadowContainer(page, path.join(__dirname, './injected/injected.css'));
+        const pages = await browserInstance.pages();
+        const page = pages[0];
+        await injectAxeIfUndefined(page);
+        await page.addStyleTag({path: path.join(__dirname, './injected/injected.css')});
+        await createAccessibilityInsightsRootContainer(page);
+        await createShadowContainer(page, path.join(__dirname, './injected/injected.css'));
     }catch(error){
         console.log(error)
     }
