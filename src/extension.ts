@@ -125,7 +125,6 @@ export function activate(context: vscode.ExtensionContext): void {
             telemetryReporter.sendTelemetryEvent('view/devtools');
             const runtimeConfig = getRuntimeConfig();
             DevToolsPanel.createOrShow(context, telemetryReporter, target.websocketUrl, runtimeConfig);
-            AccessibilityInsightsPanel.createOrShow(context, target.websocketUrl, false);
         }));
 
     context.subscriptions.push(vscode.commands.registerCommand(
@@ -141,29 +140,17 @@ export function activate(context: vscode.ExtensionContext): void {
             ScreencastPanel.createOrShow(context,  telemetryReporter, target.websocketUrl, isJsDebugProxiedCDPConnection);
         }));
 
-    // context.subscriptions.push(vscode.commands.registerCommand(
-    //     `${SETTINGS_VIEW_NAME}.runAutomatedChecks`,
-    //     (target?: CDPTarget, isJsDebugProxiedCDPConnection = false) => {
-    //         if (!target){
-    //             const errorMessage = 'No target selected';
-    //             telemetryReporter.sendTelemetryErrorEvent('command/a11y-insights/target', {message: errorMessage});
-    //             return;
-    //         }
-    //         console.log("RUN CHECKS EXTENSION")
-    //     }));
-
     context.subscriptions.push(vscode.commands.registerCommand(
         `${SETTINGS_VIEW_NAME}.toggleAccessibilityInsights`,
-        (target?: CDPTarget) => {
+        (target?: CDPTarget, isJsDebugProxiedCDPConnection = false) => {
             if (!target){
-                console.log('NO TARGET')
                 const errorMessage = 'No target selected';
                 telemetryReporter.sendTelemetryErrorEvent('command/a11y-insights/target', {message: errorMessage});
                 return;
             }
             telemetryReporter.sendTelemetryEvent('user/buttonPress', { 'VSCode.buttonCode': buttonCode.toggleAccessibilityInsights });
             telemetryReporter.sendTelemetryEvent('view/accessibilityInsights');
-            injectScripts(browserInstance);
+            AccessibilityInsightsPanel.createOrShow(context, target.websocketUrl, isJsDebugProxiedCDPConnection)
         }));
 
     context.subscriptions.push(vscode.commands.registerCommand(
@@ -238,8 +225,15 @@ export function activate(context: vscode.ExtensionContext): void {
             telemetryReporter.sendTelemetryEvent('user/buttonPress', { 'VSCode.buttonCode': buttonCode.viewDocumentation });
             void vscode.env.openExternal(vscode.Uri.parse('https://docs.microsoft.com/en-us/microsoft-edge/visual-studio-code/microsoft-edge-devtools-extension'));
         }));
-
-
+    context.subscriptions.push(vscode.commands.registerCommand(`${SETTINGS_VIEW_NAME}.injectScripts`, async (runChecks?: boolean) => {
+        if (browserInstance) {
+            await injectScripts(browserInstance);
+            if(runChecks === true){
+                AccessibilityInsightsPanel.instance?.runAutomatedChecks();
+            }
+            cdpTargetsProvider.refresh();
+        }
+    }));
     const settingsConfig = vscode.workspace.getConfiguration(SETTINGS_STORE_NAME);
     const mirrorEditsEnabled = settingsConfig.get('mirrorEdits');
     void vscode.commands.executeCommand('setContext', 'mirrorEditingEnabled', mirrorEditsEnabled);
@@ -388,7 +382,7 @@ export async function attach(
                 useRetry = false;
                 const runtimeConfig = getRuntimeConfig(config);
                 DevToolsPanel.createOrShow(context, telemetryReporter, targetWebsocketUrl, runtimeConfig);
-                AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false);
+               // AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false);
 
             } else if (useRetry) {
                 // Wait for a little bit until we retry
@@ -455,7 +449,7 @@ export async function attachToCurrentDebugTarget(context: vscode.ExtensionContex
         const runtimeConfig = getRuntimeConfig();
         runtimeConfig.isJsDebugProxiedCDPConnection = true;
         DevToolsPanel.createOrShow(context, telemetryReporter, targetWebsocketUrl, runtimeConfig);
-        AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false);
+        //AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false);
 
     } else {
         const errorMessage = 'Unable to attach DevTools to current debug session.';
@@ -484,7 +478,7 @@ export async function launch(context: vscode.ExtensionContext, launchUrl?: strin
         telemetryReporter.sendTelemetryEvent('command/launch/devtools', telemetryProps);
         const runtimeConfig = getRuntimeConfig(config);
         DevToolsPanel.createOrShow(context, telemetryReporter, target.webSocketDebuggerUrl, runtimeConfig);
-        AccessibilityInsightsPanel.createOrShow(context, target.webSocketDebuggerUrl, false);
+       // AccessibilityInsightsPanel.createOrShow(context, target.webSocketDebuggerUrl, false);
 
     } else {
         // Launch a new instance
@@ -547,7 +541,6 @@ async function injectScripts(browserInstance: Browser): Promise<void> {
 
 async function injectScriptFile(page: Page, filePath: string): Promise<void> {
     await page.addScriptTag({ path: filePath, type: 'module' });
-    await page.waitForNetworkIdle(); //wait for the script to be available
 }
 
 async function injectAxeIfUndefined(page: Page): Promise<void> {

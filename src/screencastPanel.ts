@@ -65,7 +65,6 @@ export class ScreencastPanel {
 
         // Handle messages from the webview
         this.panel.webview.onDidReceiveMessage(message => {
-            console.log({message})
             this.panelSocket.onMessageFromWebview(message);
         }, this);
 

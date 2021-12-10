@@ -19,7 +19,7 @@ export class AccessibilityInsights {
         //Page.axeIsDefined
 
         //trigger events
-       // this.cdpConnection.registerForEvent('Page.runAutomatedChecks', result => this.onRunAutomatedChecks(result))
+        this.cdpConnection.registerForEvent('runAutomatedChecks', () => this.onRunAutomatedChecks())
         //runAutomatedChecks
         //toggleVisualizations
         //showResults
@@ -48,15 +48,11 @@ export class AccessibilityInsights {
     //look at issue element
     //get issue element coordinates and size
     //create shadow version box at coordinates with size
-
-    public onAutomatedChecks(): void {
-
+    private onRunAutomatedChecks(): void {
         this.cdpConnection.sendMessageToBackend("Runtime.evaluate", { expression: 'window.axe.run(document, {runOnly: { type: "tag", values: ["wcag2a", "wcag21a", "wcag2aa", "wcag21aa"]}})' }, (results) => {
-            try {
-                this.cdpConnection.sendMessageToBackend("Runtime.awaitPromise", { promiseObjectId: results.result.objectId, returnByValue: true, generatePreview: true}, (result) => {
+            this.cdpConnection.sendMessageToBackend("Runtime.awaitPromise", { promiseObjectId: results.result.objectId, returnByValue: true, generatePreview: true}, (result) => {
                     this.cdpConnection.sendMessageToBackend('AccessibilityInsights.showAutomatedChecksResults', {result: result.result.value})
                     this.cdpConnection.sendMessageToBackend('AccessibilityInsights.logAutomatedChecks', {result})
-
                     const issues = result.result.value.violations;
                     issues.forEach((issue: { nodes: { target: any[]; }[]; }) => {
                         issue.nodes.forEach(node => {
@@ -67,10 +63,9 @@ export class AccessibilityInsights {
                         })
                     })
                 })
-            }catch(e) {
-                this.cdpConnection.sendMessageToBackend('AccessibilityInsights.logAutomatedChecks', {e})
-            }
         })
-
+    }
+    public onAutomatedChecks(): void {
+        this.cdpConnection.sendMessageToBackend("AccessibilityInsights.injectScripts", {})
     }
 }
