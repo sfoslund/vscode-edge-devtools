@@ -518,7 +518,6 @@ export async function launch(context: vscode.ExtensionContext, launchUrl?: strin
                 reportUrlType(target.url(), telemetryReporter);
             }
         });
-        await injectScripts(browserInstance);
         await attach(context, url, config);
     }
 
@@ -580,20 +579,24 @@ async function createShadowHost(page: Page): Promise<HTMLElement> {
     }, rootContainerId)
 }
 
-async function createShadowContainer(page: Page, pathName: string): Promise<HTMLElement> {
-    const existingHosts = await page.$$(`#insights-shadow-host`);
+async function removeExistingElementsWithId(page: Page, id: string): Promise<void>{
+    const existingElements = await page.$$(`#${id}`);
 
-    existingHosts.forEach(async (element) => {
+    existingElements.forEach(async (element) => {
         await page.evaluate((element) => element.remove(), element);
     });
+}
+
+async function createShadowContainer(page: Page, pathName: string): Promise<HTMLElement> {
+    await removeExistingElementsWithId(page, 'insights-shadow-host');
     await createShadowHost(page);
     const shadowHostElement = await page.$(`#insights-shadow-host`);
     return await page.evaluate((shadowHostElement, pathName) => {
-        shadowHostElement.attachShadow({mode: 'open'});
+        const shadow = shadowHostElement.attachShadow({mode: 'open'});
         const container = document.createElement('div');
         container.id = 'insights-shadow-container';
-        shadowHostElement.append(container);
-        const shadowContainer = shadowHostElement.firstChild as HTMLElement;
+        shadow.append(container);
+        const shadowContainer = shadow.firstChild as HTMLElement;
         const styleElement = document.createElement('link');
         styleElement.rel = 'stylesheet';
         styleElement.href = pathName;
@@ -601,16 +604,12 @@ async function createShadowContainer(page: Page, pathName: string): Promise<HTML
         shadowContainer.appendChild(styleElement);
         return shadowContainer;
     }, shadowHostElement, pathName)
-   
 }
 
 async function createAccessibilityInsightsRootContainer(page: Page): Promise<void>{
     try {
-        const existingRoots = await page.$$(`#${rootContainerId}`);
+        await removeExistingElementsWithId(page, rootContainerId);
 
-        existingRoots.forEach(async (element) => {
-            await page.evaluate((element) => element.remove(), element);
-        });
         await page.evaluate((id) => {
             const root = document.createElement('div');
             root.id = id;
