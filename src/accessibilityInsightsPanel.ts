@@ -75,25 +75,34 @@ export class AccessibilityInsightsPanel {
     }
 
     private convertImpactToDiagSeverity(impact: string) : vscode.DiagnosticSeverity {
-        if (impact == 'serious'){
+        if (impact === 'serious' || impact === 'critical'){
             return vscode.DiagnosticSeverity.Error
         }
         return vscode.DiagnosticSeverity.Warning
     }
 
-    private async getDiagnosticCodeLocation(url: string): Promise<[vscode.Uri, vscode.Range]> {
-        try {
-            const uri = vscode.Uri.parse(url);
-            const document = await vscode.workspace.openTextDocument(uri);
+    private getPosition(documentContent: string, index: number): vscode.Position {
+        // TODO seems like there should be an easier way to do this, but can't find it from the API docs
+        const priorDocumentContent = documentContent.substring(0, index);
+        const lineCount = priorDocumentContent.split('\n').length;
+        const priorLineCharCount = priorDocumentContent.lastIndexOf('\n');
+        const characterCount = index - priorLineCharCount;
+        return new vscode.Position(lineCount - 1, characterCount - 1);
+    }
 
-            // TODO this selects the whole doc, should get more specific
-            var firstLine = document.lineAt(0);
-            var lastLine = document.lineAt(document.lineCount - 1);
-            const range = new vscode.Range(firstLine.range.start, lastLine.range.end);
-            return [uri, range];
+    // Determine where in the source file the violation is
+    private async getViolationRange(uri: vscode.Uri, html: string): Promise<vscode.Range> {
+        try {
+            const document = await vscode.workspace.openTextDocument(uri);
+            let documentContent = document.getText();
+            const startIndex = documentContent.indexOf(html);
+            if (startIndex < 0) {
+                throw new Error('Violating HTML does not appear in document.');
+            }
+            const endIndex = startIndex + html.length;
+            return new vscode.Range(this.getPosition(documentContent, startIndex), this.getPosition(documentContent, endIndex));
         } catch {
-            // TODO find a better fallback-> this one causes an error if the user clicks on it in the problem pane
-            return [vscode.Uri.parse('Accessibility Insights', false), new vscode.Range(0,0,0,0)]; 
+            return new vscode.Range(0, 0, 0, 0);
         }
     }
 
@@ -103,7 +112,7 @@ export class AccessibilityInsightsPanel {
         if (message && message.includes('AutomatedChecks')) {
             try {
                 const cdpMsg = JSON.parse((JSON.parse(message) as {message: string}).message) as 
-                    {method: string, params: {result: {violations: {id: string, impact: string, help: string}[], url: string}}};
+                    {method: string, params: {result: {violations: {id: string, impact: string, help: string, nodes: {html: string}[]}[], url: string}}};
                 if (cdpMsg.method === 'Page.runAutomatedChecks') {
                    this.runAutomatedChecks()
                 }
@@ -114,17 +123,23 @@ export class AccessibilityInsightsPanel {
                         return;
                     }
 
-                    this.getDiagnosticCodeLocation(cdpMsg.params.result.url).then(diagLocation => {
-                        const result : vscode.Diagnostic[] = [];
-                        for (let violation of cdpMsg.params.result.violations) {
-                            result.push({code: violation.id,
-                                message: violation.help,
-                                severity: this.convertImpactToDiagSeverity(violation.impact),
-                                range: diagLocation[1]
-                            })
+                    const uri = vscode.Uri.parse(cdpMsg.params.result.url);
+                    const diagnosticsPromises : Promise<vscode.Diagnostic>[] = [];
+                    for (const violation of cdpMsg.params.result.violations) {
+                        for (const node of violation.nodes) {
+                            diagnosticsPromises.push(this.getViolationRange(uri, node.html).then(range => {
+                                return {code: violation.id,
+                                    message: violation.help,
+                                    severity: this.convertImpactToDiagSeverity(violation.impact),
+                                    range: range
+                                }
+                            }));
                         }
+                    }
+                    Promise.all(diagnosticsPromises).then(diagnosticsResults => {
+                        // Update problems pane
                         this.diagnosticsCollection.clear();
-                        this.diagnosticsCollection.set(diagLocation[0], result);
+                        this.diagnosticsCollection.set(uri, diagnosticsResults);
                     });
                 }
             } catch (e) {
