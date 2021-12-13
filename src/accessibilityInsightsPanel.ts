@@ -12,6 +12,7 @@ import {
     SETTINGS_STORE_NAME, SETTINGS_VIEW_NAME,
 } from './utils/utils';
 import { AccessibilityInsightsView } from './accessibilityInsights/view';
+import fs from 'fs';
 
 export class AccessibilityInsightsPanel {
     private readonly context: vscode.ExtensionContext;
@@ -91,7 +92,7 @@ export class AccessibilityInsightsPanel {
     }
 
     // Determine where in the source file the violation is
-    private async getViolationRange(uri: vscode.Uri, html: string): Promise<vscode.Range> {
+    private async getViolationRange(uri: vscode.Uri, html: string): Promise<vscode.Range | undefined> {
         try {
             const document = await vscode.workspace.openTextDocument(uri);
             let documentContent = document.getText();
@@ -102,7 +103,24 @@ export class AccessibilityInsightsPanel {
             const endIndex = startIndex + html.length;
             return new vscode.Range(this.getPosition(documentContent, startIndex), this.getPosition(documentContent, endIndex));
         } catch {
-            return new vscode.Range(0, 0, 0, 0);
+            return undefined;
+        }
+    }
+
+    // Determine which source files might correspond to the given url
+    private async getDocumentUris(url: string): Promise<vscode.Uri[]> {
+        try {
+            if (fs.existsSync(url)) {
+                return [vscode.Uri.parse((url))];
+            } else {
+                let fileName = url.split('/').filter(urlElement => urlElement).pop();
+                fileName = fileName?.includes('localhost') ? 'index' : fileName;
+                const htmlFiles = await vscode.workspace.findFiles(`**/${fileName}.html`);
+                return htmlFiles;
+            }
+        } catch (e) {
+            // Don't show the violation in the problems pane at all if we can't find the source code
+            return [];
         }
     }
 
@@ -127,23 +145,41 @@ export class AccessibilityInsightsPanel {
                         return;
                     }
 
-                    const uri = vscode.Uri.parse(cdpMsg.params.result.url);
-                    const diagnosticsPromises : Promise<vscode.Diagnostic>[] = [];
-                    for (const violation of cdpMsg.params.result.violations) {
-                        for (const node of violation.nodes) {
-                            diagnosticsPromises.push(this.getViolationRange(uri, node.html).then(range => {
-                                return {code: violation.id,
-                                    message: violation.help,
-                                    severity: this.convertImpactToDiagSeverity(violation.impact),
-                                    range: range
+                    this.getDocumentUris(cdpMsg.params.result.url).then(uris => {
+                        const diagnosticsPromises : Promise<[vscode.Uri, vscode.Diagnostic | undefined]>[] = [];
+                        for (const uri of uris) {
+                            for (const violation of cdpMsg.params.result.violations) {
+                                for (const node of violation.nodes) {
+                                    const newPromise : Promise<[vscode.Uri, vscode.Diagnostic | undefined]> = this.getViolationRange(uri, node.html).then(range => {
+                                        if (range) {
+                                            // Construct violation pointing to correct location in the source file
+                                            return [uri, {code: `Accessibility Insights (${violation.id})`,
+                                                message: violation.help,
+                                                severity: this.convertImpactToDiagSeverity(violation.impact),
+                                                range: range
+                                            }];
+                                        } else {
+                                            // Couldn't find the violating code snippet in this file, don't highlight anything
+                                            return [uri, undefined];
+                                        }
+                                    });
+
+                                    diagnosticsPromises.push(newPromise);
                                 }
-                            }));
+                            }
                         }
-                    }
-                    Promise.all(diagnosticsPromises).then(diagnosticsResults => {
-                        // Update problems pane
-                        this.diagnosticsCollection.clear();
-                        this.diagnosticsCollection.set(uri, diagnosticsResults);
+                        Promise.all(diagnosticsPromises).then(diagnosticsResults => {
+                            // Update problems pane
+                            this.diagnosticsCollection.clear();
+                            const uris = diagnosticsResults.map(result => result[0])
+                                .filter((value, index, self) => self.indexOf(value) === index);
+                            for (const uri of uris) {
+                                const diagResults = diagnosticsResults.filter(res => res[0] === uri)
+                                    .map(res => res[1])
+                                    .filter(diagnostic => diagnostic) as vscode.Diagnostic[];
+                                this.diagnosticsCollection.set(uri, diagResults);
+                            }
+                        });
                     });
                 }
                 if(method === 'AccessibilityInsights.logAutomatedChecks'){
