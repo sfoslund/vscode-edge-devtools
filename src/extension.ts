@@ -33,7 +33,7 @@ import {
     reportChangedExtensionSetting,
     reportExtensionSettings,
     reportUrlType,
-} from './utils';
+} from './utils/utils';
 import { LaunchConfigManager } from './launchConfigManager';
 import { ErrorReporter } from './errorReporter';
 import { SettingsProvider } from './common/settingsProvider';
@@ -141,28 +141,16 @@ export function activate(context: vscode.ExtensionContext): void {
         }));
 
     context.subscriptions.push(vscode.commands.registerCommand(
-        `${SETTINGS_VIEW_NAME}.runAutomatedChecks`,
+        `${SETTINGS_VIEW_NAME}.toggleAccessibilityInsights`,
         (target?: CDPTarget, isJsDebugProxiedCDPConnection = false) => {
             if (!target){
                 const errorMessage = 'No target selected';
                 telemetryReporter.sendTelemetryErrorEvent('command/a11y-insights/target', {message: errorMessage});
                 return;
             }
-            console.log("RUN CHECKS EXTENSION")
-        }));
-
-    context.subscriptions.push(vscode.commands.registerCommand(
-        `${SETTINGS_VIEW_NAME}.toggleAccessibilityInsights`,
-        (target?: CDPTarget) => {
-            if (!target){
-                console.log('NO TARGET')
-                const errorMessage = 'No target selected';
-                telemetryReporter.sendTelemetryErrorEvent('command/a11y-insights/target', {message: errorMessage});
-                return;
-            }
             telemetryReporter.sendTelemetryEvent('user/buttonPress', { 'VSCode.buttonCode': buttonCode.toggleAccessibilityInsights });
             telemetryReporter.sendTelemetryEvent('view/accessibilityInsights');
-            AccessibilityInsightsPanel.createOrShow(context, target.websocketUrl, false);
+            AccessibilityInsightsPanel.createOrShow(context, target.websocketUrl, isJsDebugProxiedCDPConnection)
         }));
 
     context.subscriptions.push(vscode.commands.registerCommand(
@@ -237,8 +225,15 @@ export function activate(context: vscode.ExtensionContext): void {
             telemetryReporter.sendTelemetryEvent('user/buttonPress', { 'VSCode.buttonCode': buttonCode.viewDocumentation });
             void vscode.env.openExternal(vscode.Uri.parse('https://docs.microsoft.com/en-us/microsoft-edge/visual-studio-code/microsoft-edge-devtools-extension'));
         }));
-
-
+    context.subscriptions.push(vscode.commands.registerCommand(`${SETTINGS_VIEW_NAME}.injectScripts`, async (runChecks?: boolean) => {
+        if (browserInstance) {
+            await injectScripts(browserInstance);
+            if(runChecks === true){
+                AccessibilityInsightsPanel.instance?.runAutomatedChecks();
+            }
+            cdpTargetsProvider.refresh();
+        }
+    }));
     const settingsConfig = vscode.workspace.getConfiguration(SETTINGS_STORE_NAME);
     const mirrorEditsEnabled = settingsConfig.get('mirrorEdits');
     void vscode.commands.executeCommand('setContext', 'mirrorEditingEnabled', mirrorEditsEnabled);
@@ -387,8 +382,8 @@ export async function attach(
                 useRetry = false;
                 const runtimeConfig = getRuntimeConfig(config);
                 DevToolsPanel.createOrShow(context, telemetryReporter, targetWebsocketUrl, runtimeConfig);
-                AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false)
-                await injectScripts(browserInstance);
+               // AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false);
+
             } else if (useRetry) {
                 // Wait for a little bit until we retry
                 await new Promise<void>(resolve => {
@@ -454,6 +449,8 @@ export async function attachToCurrentDebugTarget(context: vscode.ExtensionContex
         const runtimeConfig = getRuntimeConfig();
         runtimeConfig.isJsDebugProxiedCDPConnection = true;
         DevToolsPanel.createOrShow(context, telemetryReporter, targetWebsocketUrl, runtimeConfig);
+        //AccessibilityInsightsPanel.createOrShow(context, targetWebsocketUrl, false);
+
     } else {
         const errorMessage = 'Unable to attach DevTools to current debug session.';
         telemetryReporter.sendTelemetryErrorEvent('command/attachToCurrentDebugTarget/devtools', {message: errorMessage});
@@ -481,6 +478,8 @@ export async function launch(context: vscode.ExtensionContext, launchUrl?: strin
         telemetryReporter.sendTelemetryEvent('command/launch/devtools', telemetryProps);
         const runtimeConfig = getRuntimeConfig(config);
         DevToolsPanel.createOrShow(context, telemetryReporter, target.webSocketDebuggerUrl, runtimeConfig);
+       // AccessibilityInsightsPanel.createOrShow(context, target.webSocketDebuggerUrl, false);
+
     } else {
         // Launch a new instance
         const browserPath = await getBrowserPath(config);
@@ -527,28 +526,101 @@ export async function launch(context: vscode.ExtensionContext, launchUrl?: strin
 declare let window: Window & { axe: any };
 
 async function injectScripts(browserInstance: Browser): Promise<void> {
-    const page = await browserInstance.pages();
-    await injectAxeIfUndefined(page[0]);
+    try {
+        const pages = await browserInstance.pages();
+        const page = pages[0];
+        await injectAxeIfUndefined(page);
+        await page.addStyleTag({path: path.join(__dirname, './injected/injected.css')});
+        await createAccessibilityInsightsRootContainer(page);
+        await createShadowContainer(page, path.join(__dirname, './injected/injected.css'));
+    }catch(error){
+        console.log(error)
+    }
 }
 
 async function injectScriptFile(page: Page, filePath: string): Promise<void> {
-        await page.addScriptTag({ path: filePath, type: 'module' });
-        await page.waitForNetworkIdle(); //wait for the script to be available
+    await page.addScriptTag({ path: filePath, type: 'module' });
 }
 
-async function injectAxeIfUndefined(client: Page): Promise<void> {
-    const axeIsUndefined = await client.evaluate(() => {
+async function injectAxeIfUndefined(page: Page): Promise<void> {
+    const axeIsUndefined = await page.evaluate(() => {
         return (window as any).axe === undefined;
     }, null);
 
     if (axeIsUndefined) {
         await injectScriptFile(
-            client,
+            page,
             path.join(__dirname, '../node_modules/axe-core/axe.min.js'),
         );
 
-        await client.waitForFunction(() => {
+        await page.waitForFunction(() => {
             return (window as any).axe !== undefined;
         });
     }
+}
+
+//creates shadowDOM and has a piece of state pointing to it
+//add elements to shadowDOM for each issue
+// * detect the clientRect for each issue element
+// * visualization that corresponds to that element
+const rootContainerId = 'accessibility-insights-root-container';
+
+async function createShadowHost(page: Page): Promise<HTMLElement> {
+
+    return await page.evaluate((rootContainerId) => {
+        const rootContainer = document.getElementById(rootContainerId)
+        if (rootContainer == null) {
+            throw Error('expected rootContainer to be defined and not null');
+        }
+        const host = document.createElement('div');
+        host.id = 'insights-shadow-host';
+        rootContainer.append(host);
+        return host;
+    }, rootContainerId)
+}
+
+async function removeExistingElementsWithId(page: Page, id: string): Promise<void>{
+    const existingElements = await page.$$(`#${id}`);
+
+    existingElements.forEach(async (element) => {
+        await page.evaluate((element) => element.remove(), element);
+    });
+}
+
+async function createShadowContainer(page: Page, pathName: string): Promise<HTMLElement> {
+    await removeExistingElementsWithId(page, 'insights-shadow-host');
+    await createShadowHost(page);
+    const shadowHostElement = await page.$(`#insights-shadow-host`);
+    return await page.evaluate((shadowHostElement, pathName) => {
+        const shadow = shadowHostElement.attachShadow({mode: 'open'});
+        const container = document.createElement('div');
+        container.id = 'insights-shadow-container';
+        shadow.append(container);
+        const shadowContainer = shadow.firstChild as HTMLElement;
+        const styleElement = document.createElement('link');
+        styleElement.rel = 'stylesheet';
+        styleElement.href = pathName;
+        styleElement.type = 'text/css';
+        shadowContainer.appendChild(styleElement);
+        return shadowContainer;
+    }, shadowHostElement, pathName)
+}
+
+async function createAccessibilityInsightsRootContainer(page: Page): Promise<void>{
+    try {
+        await removeExistingElementsWithId(page, rootContainerId);
+
+        await page.evaluate((id) => {
+            const root = document.createElement('div');
+            root.id = id;
+            document.body.append(root);
+        }, rootContainerId)
+    }catch(err){
+        console.log(err)
+    }
+
+    // this.htmlElementUtils.deleteAllElements(`#${id}`);
+    // const root = document.createElement('div');
+    // root.id = id;
+    // this.htmlElementUtils.getBody().appendChild(root);
 }

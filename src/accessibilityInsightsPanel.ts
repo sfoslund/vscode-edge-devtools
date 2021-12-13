@@ -9,8 +9,8 @@ import {
 import { JsDebugProxyPanelSocket } from './JsDebugProxyPanelSocket';
 import { PanelSocket } from './panelSocket';
 import {
-    SETTINGS_STORE_NAME,
-} from './utils';
+    SETTINGS_STORE_NAME, SETTINGS_VIEW_NAME,
+} from './utils/utils';
 import { AccessibilityInsightsView } from './accessibilityInsights/view';
 
 export class AccessibilityInsightsPanel {
@@ -109,14 +109,18 @@ export class AccessibilityInsightsPanel {
     private onSocketMessage(message: string) {
         // If inspect mode is toggled on the DevTools, we need to let the standalone screencast
         // know in order to enable hover events to be sent through.
-        if (message && message.includes('AutomatedChecks')) {
+        if (message && (message.includes('AutomatedChecks') || message.includes('AccessibilityInsights'))) {
             try {
                 const cdpMsg = JSON.parse((JSON.parse(message) as {message: string}).message) as 
                     {method: string, params: {result: {violations: {id: string, impact: string, help: string, nodes: {html: string}[]}[], url: string}}};
-                if (cdpMsg.method === 'Page.runAutomatedChecks') {
-                   this.runAutomatedChecks()
+                const { method, params } = JSON.parse((JSON.parse(message) as {message: string}).message) as {method: string, params: any };
+                if (method === 'Page.runAutomatedChecks') {
+                    this.runAutomatedChecks()
                 }
-                if(cdpMsg.method === 'AccessibilityInsights.showAutomatedChecksResults') {
+                if(method === 'AccessibilityInsights.injectScripts') {
+                    void vscode.commands.executeCommand(`${SETTINGS_VIEW_NAME}.injectScripts`, true);
+                }
+                if(method === 'AccessibilityInsights.showAutomatedChecksResults') {
                     if (cdpMsg.params.result.violations.length === 0) {
                         vscode.window.showInformationMessage(`No accessibility violations detected in ${cdpMsg.params.result.url}`);
                         this.diagnosticsCollection.clear();
@@ -142,8 +146,11 @@ export class AccessibilityInsightsPanel {
                         this.diagnosticsCollection.set(uri, diagnosticsResults);
                     });
                 }
+                if(method === 'AccessibilityInsights.logAutomatedChecks'){
+                    console.log({params, message})
+                }
             } catch (e) {
-                // Ignore
+                console.log("AN ERROR", e)
             }
         }
         // TODO: Handle message
@@ -157,9 +164,8 @@ export class AccessibilityInsightsPanel {
         encodeMessageForChannel(msg => this.panel.webview.postMessage(msg) as unknown as void, 'websocket', { event: e, message });
     }
 
-    private runAutomatedChecks(){
-        console.log('PANEL MESSAGE?')
-
+    public runAutomatedChecks(){
+        encodeMessageForChannel(msg => this.panel.webview.postMessage(msg) as unknown as void, 'runAutomatedChecks', {});
     }
 
     private getHtmlForWebview() {

@@ -5,7 +5,7 @@
 // tslint:disable: variable-name
 
 import { createFakeVSCode } from "./helpers/helpers";
-import { IRemoteTargetJson } from "../src/utils";
+import { IRemoteTargetJson } from "../src/utils/utils";
 
 describe("CDPTarget", () => {
     let mockVSCode: typeof import("vscode");

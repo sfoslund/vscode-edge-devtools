@@ -125,6 +125,16 @@
                 }
             },
             {
+                "command": "vscode-edge-devtools-view.toggleAccessibilityInsights",
+                "category": "Microsoft Edge Tools",
+                "title": "Toggle Accessibility Insights",
+                "enablement": "viewItem != cdpTargetClosing",
+                "icon": {
+                    "light": "resources/light/ai-heart.png",
+                    "dark": "resources/dark/ai-heart.png"
+                }
+            },
+            {
                 "command": "vscode-edge-devtools-view.copyItem",
                 "category": "Microsoft Edge Tools",
                 "title": "Copy Value"
@@ -583,6 +593,11 @@
                     "command": "vscode-edge-devtools-view.close-instance",
                     "when": "view == vscode-edge-devtools-view.targets && viewItem == cdpTarget || viewItem == cdpTargetClosing",
                     "group": "inline@2"
+                },
+                {
+                    "command": "vscode-edge-devtools-view.toggleAccessibilityInsights",
+                    "when": "view == vscode-edge-devtools-view.targets && viewItem == cdpTarget",
+                    "group": "inline@3"
                 },
                 {
                     "command": "vscode-edge-devtools-view.attach",

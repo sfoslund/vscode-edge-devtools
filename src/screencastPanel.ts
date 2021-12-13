@@ -14,7 +14,7 @@ import { ScreencastView } from './screencast/view';
 import {
     SETTINGS_STORE_NAME,
     SETTINGS_SCREENCAST_WEBVIEW_NAME,
-} from './utils';
+} from './utils/utils';
 import TelemetryReporter from 'vscode-extension-telemetry';
 
 export class ScreencastPanel {
@@ -65,7 +65,6 @@ export class ScreencastPanel {
 
         // Handle messages from the webview
         this.panel.webview.onDidReceiveMessage(message => {
-            console.log({message})
             this.panelSocket.onMessageFromWebview(message);
         }, this);
 

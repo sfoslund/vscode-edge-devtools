@@ -9,7 +9,7 @@ import {
     createFakeVSCode,
     Mocked,
 } from "./helpers/helpers";
-import { SETTINGS_STORE_NAME } from "../src/utils";
+import { SETTINGS_STORE_NAME } from "../src/utils/utils";
 
 jest.mock("vscode", () => null, { virtual: true });
 

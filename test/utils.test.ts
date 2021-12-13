@@ -7,13 +7,13 @@
 import * as path from "path";
 
 import { createFakeExtensionContext, createFakeGet, createFakeTelemetryReporter, createFakeVSCode, Mocked } from "./helpers/helpers";
-import { BrowserFlavor, IRemoteTargetJson, IUserConfig } from "../src/utils";
+import { BrowserFlavor, IRemoteTargetJson, IUserConfig } from "../src/utils/utils";
 import { ConfigurationChangeEvent } from "vscode";
 
 jest.mock("vscode", () => null, { virtual: true });
 
 describe("utils", () => {
-    let utils: typeof import("../src/utils");
+    let utils: typeof import("../src/utils/utils");
     let mockGetHttp: jest.Mock;
     let mockGetHttps: jest.Mock;
 
@@ -27,7 +27,7 @@ describe("utils", () => {
         mockGetHttp = jest.requireMock("http").get;
         mockGetHttps = jest.requireMock("https").get;
 
-        utils = await import("../src/utils");
+        utils = await import("../src/utils/utils");
     });
 
     describe("fixRemoteWebSocket", () => {
@@ -388,7 +388,7 @@ describe("utils", () => {
             jest.doMock("../src/debugTelemetryReporter", () => ({DebugTelemetryReporter: jest.fn()}));
             jest.resetModules();
 
-            utils = await import("../src/utils");
+            utils = await import("../src/utils/utils");
         });
 
         it("returns a debug version when no package info in debug env", async () => {
@@ -414,7 +414,7 @@ describe("utils", () => {
             jest.resetModules();
             jest.requireMock("vscode").env.machineId = "12345";
 
-            utils = await import("../src/utils");
+            utils = await import("../src/utils/utils");
 
             const mockContext = createFakeExtensionContext();
             const reporter = utils.createTelemetryReporter(mockContext);
@@ -427,7 +427,7 @@ describe("utils", () => {
         it("returns the correct platform", async () => {
             jest.doMock("os");
             jest.resetModules();
-            utils = await import("../src/utils");
+            utils = await import("../src/utils/utils");
 
             const os: Mocked<typeof import("os")> = jest.requireMock("os");
             os.platform.mockReturnValue("darwin");
@@ -452,7 +452,7 @@ describe("utils", () => {
             jest.doMock("fs-extra");
             jest.doMock("os");
             jest.resetModules();
-            utils = await import("../src/utils");
+            utils = await import("../src/utils/utils");
 
             fse = jest.requireMock("fs-extra");
             os = jest.requireMock("os");
@@ -561,7 +561,7 @@ describe("utils", () => {
         });
 
         it("spawns the process", async () => {
-            utils = await import("../src/utils");
+            utils = await import("../src/utils/utils");
             const expectedTempPath = "C:\\someTempPath";
             const os = jest.requireMock("os");
             os.tmpdir.mockReturnValue(expectedTempPath);
@@ -613,7 +613,7 @@ describe("utils", () => {
             const vscodeMock = await jest.requireMock("vscode");
             vscodeMock.workspace.getConfiguration.mockImplementationOnce(() => configMock);
 
-            utils = await import("../src/utils");
+            utils = await import("../src/utils/utils");
             const expectedTempPath = "C:\\someTempPath";
             const os = jest.requireMock("os");
             os.tmpdir.mockReturnValue(expectedTempPath);
@@ -793,7 +793,7 @@ describe("utils", () => {
         beforeEach(async () => {
             jest.unmock("path");
             jest.resetModules();
-            utils = await import("../src/utils");
+            utils = await import("../src/utils/utils");
         });
         it("appends index.html to a path", () => {
             expect(utils.addEntrypointIfNeeded("http://localhost:8080", "index.html")).toEqual("http://localhost:8080/index.html");
@@ -820,7 +820,7 @@ describe("utils", () => {
         beforeEach(async () => {
             jest.unmock("path");
             jest.resetModules();
-            utils = await import("../src/utils");
+            utils = await import("../src/utils/utils");
         });
 
         it("removes a matching webpack prefix", () => {

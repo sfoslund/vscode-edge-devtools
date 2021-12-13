@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 import * as vscode from 'vscode';
-import { SETTINGS_STORE_NAME } from '../utils';
+import { SETTINGS_STORE_NAME } from '../utils/utils';
 import { ThemeString } from './webviewEvents';
 
 const SUPPORTED_THEMES = new Map<string, string>([
